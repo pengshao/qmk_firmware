@@ -18,6 +18,8 @@
 
 static uint32_t os_switch_timer_buffer   = 0;
 static uint8_t  os_switch_indicate_count = 0;
+static uint32_t os_switch_led_timer_buffer = 0;
+static uint32_t os_switch_led_timeout = 2000;
 
 void keyboard_post_init_kb(void) {
     setPinOutputPushPull(LED_MAC_OS_PIN);
@@ -55,6 +57,11 @@ void housekeeping_task_kb(void) {
     if (default_layer_state == (1U << 2)) {
         writePin(LED_MAC_OS_PIN, !LED_OS_PIN_ON_STATE);
         writePin(LED_WIN_OS_PIN, LED_OS_PIN_ON_STATE);
+    }
+
+    if (timer_elapsed(os_switch_led_timer_buffer) > os_switch_led_timeout) {
+        writePin(LED_MAC_OS_PIN, !LED_OS_PIN_ON_STATE);
+        writePin(LED_WIN_OS_PIN, !LED_OS_PIN_ON_STATE);
     }
 
     if (os_switch_timer_buffer && timer_elapsed32(os_switch_timer_buffer) > 300) {
@@ -119,6 +126,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 default_layer_xor(1U << 2);
                 eeconfig_update_default_layer(default_layer_state);
                 os_switch_timer_buffer = timer_read32();
+                os_switch_led_timer_buffer = timer_read32();
             }
             return false;
         default:
