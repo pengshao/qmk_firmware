@@ -19,7 +19,8 @@
 static uint32_t os_switch_timer_buffer   = 0;
 static uint8_t  os_switch_indicate_count = 0;
 static uint32_t os_switch_led_timer_buffer = 0;
-static uint32_t os_switch_led_timeout = 2000;
+static uint32_t os_switch_led_bit_disable_time = 2000;
+static uint8_t os_switch_led_disable_bit = 0;
 
 void keyboard_post_init_kb(void) {
     setPinOutputPushPull(LED_MAC_OS_PIN);
@@ -50,16 +51,24 @@ void eeconfig_init_kb(void) {
 }
 
 void housekeeping_task_kb(void) {
-    if (default_layer_state == (1U << 0)) {
-        writePin(LED_MAC_OS_PIN, LED_OS_PIN_ON_STATE);
-        writePin(LED_WIN_OS_PIN, !LED_OS_PIN_ON_STATE);
-    }
-    if (default_layer_state == (1U << 2)) {
-        writePin(LED_MAC_OS_PIN, !LED_OS_PIN_ON_STATE);
-        writePin(LED_WIN_OS_PIN, LED_OS_PIN_ON_STATE);
+    if (os_switch_led_timer_buffer == 0) {
+        os_switch_led_timer_buffer = timer_read32();
     }
 
-    if (timer_elapsed(os_switch_led_timer_buffer) > os_switch_led_timeout) {
+    if (!os_switch_led_disable_bit && timer_elapsed32(os_switch_led_timer_buffer) > os_switch_led_bit_disable_time) {
+        os_switch_led_disable_bit = 1;
+    }
+
+    if (!os_switch_led_disable_bit) {
+		if (default_layer_state == (1U << 0)) {
+    	    writePin(LED_MAC_OS_PIN, LED_OS_PIN_ON_STATE);
+    	    writePin(LED_WIN_OS_PIN, !LED_OS_PIN_ON_STATE);
+    	}
+    	if (default_layer_state == (1U << 2)) {
+    	    writePin(LED_MAC_OS_PIN, !LED_OS_PIN_ON_STATE);
+    	    writePin(LED_WIN_OS_PIN, LED_OS_PIN_ON_STATE);
+    	} 
+    } else {
         writePin(LED_MAC_OS_PIN, !LED_OS_PIN_ON_STATE);
         writePin(LED_WIN_OS_PIN, !LED_OS_PIN_ON_STATE);
     }
@@ -127,6 +136,7 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
                 eeconfig_update_default_layer(default_layer_state);
                 os_switch_timer_buffer = timer_read32();
                 os_switch_led_timer_buffer = timer_read32();
+                os_switch_led_disable_bit = 0;
             }
             return false;
         default:
